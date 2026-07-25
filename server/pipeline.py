@@ -11,9 +11,9 @@ import os
 import shutil
 import traceback
 
-from cut import cut
-from transcribe import transcribe
 from server import config, drive, mailer
+from server.audio.cut import cut
+from server.audio.transcribe import transcribe
 
 JOBS_DIR = "jobs"
 RESULTS_DIR = "results"

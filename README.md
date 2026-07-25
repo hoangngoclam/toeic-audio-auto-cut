@@ -41,8 +41,15 @@ Có đủ → tự động upload Drive (link "anyone with the link") + gửi em
 | `server/drive.py` | Upload Drive + share link |
 | `server/mailer.py` | Gửi email (Gmail SMTP) |
 | `server/config.py` | Đọc env |
-| `transcribe.py` | MP3 → transcript.json (faster-whisper) |
-| `cut.py` | transcript → clips/*.mp3 (ffmpeg), port 1-1 từ cut.js |
+| `server/audio/transcribe.py` | MP3 → transcript.json (faster-whisper) |
+| `server/audio/cut.py` | transcript → clips/*.mp3 (ffmpeg) |
+
+Chạy riêng 2 bước audio (debug nhanh, không cần server):
+
+```bash
+.venv/bin/python -m server.audio.transcribe test-files/Test_07.mp3   # -> transcript.json
+.venv/bin/python -m server.audio.cut test-files/Test_07.mp3 clips transcript.json
+```
 
 Hàng đợi: `ThreadPoolExecutor(max_workers=2)` trong tiến trình — cùng giới hạn
 "tối đa 2 job cùng lúc" như spec, nhưng 1 process, không cần Redis/RQ. Thêm RQ

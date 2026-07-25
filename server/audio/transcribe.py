@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Transcribe an audio file to timestamped segments -> transcript.json
-# CLI:    .venv/bin/python transcribe.py <input.mp3> [model]
-# Module: from transcribe import transcribe ; transcribe(audio, out_path)
+# CLI:    .venv/bin/python -m server.audio.transcribe <input.mp3> [model]
+# Module: from server.audio.transcribe import transcribe ; transcribe(audio, out_path)
 # ponytail: faster-whisper does everything; we just dump segments to JSON.
 
 import json
