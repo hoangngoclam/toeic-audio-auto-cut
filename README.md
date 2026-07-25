@@ -101,8 +101,18 @@ Một lệnh, chạy **trên** VPS (Ubuntu + Caddy) trong thư mục clone:
 
 ```bash
 git clone https://github.com/hoangngoclam/toeic-audio-auto-cut.git && cd toeic-audio-auto-cut
-sudo DOMAIN=toeic.example.com GROQ_API_KEY=gsk_... ./deploy.sh
+
+sudo DOMAIN=toeic.example.com ./deploy.sh   # lần 1: cài ffmpeg/venv/deps + tạo .env, rồi dừng
+nano .env                                   # bạn tự điền: GROQ_API_KEY, GOOGLE_*, GMAIL_*
+sudo DOMAIN=toeic.example.com ./deploy.sh   # lần 2: systemd + Caddy + chạy
 ```
+
+`deploy.sh` **không bao giờ ghi giá trị vào `.env`** — chỉ tạo file mẫu 0600 rồi đọc lại để
+kiểm tra. Lần chạy đầu vẫn cài hết những gì không cần secret, sau đó dừng ở bước kiểm tra
+config. Nếu `GROQ_API_KEY` trống → dừng; `GOOGLE_SHEET_ID`/`GOOGLE_SA_JSON` trống → chỉ
+cảnh báo (app chạy được, nhưng không có log khách và **không chặn quota**);
+`GOOGLE_SA_JSON` trỏ tới file không tồn tại / user chạy service không đọc được → dừng.
+File service-account `.json` bạn tự upload lên VPS (đã bị gitignore).
 
 `deploy.sh` cài ffmpeg + venv, tạo `.env`, systemd unit `toeic-cut`, site Caddy
 `/etc/caddy/conf.d/toeic-cut.caddy`, rồi kiểm tra app đã lên. Chạy lại bao nhiêu lần cũng

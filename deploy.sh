@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 # One-command deploy for Ubuntu + Caddy. Run ON the server, from inside a clone:
 #
-#   sudo DOMAIN=toeic.example.com GROQ_API_KEY=gsk_... ./deploy.sh
+#   sudo DOMAIN=toeic.example.com ./deploy.sh
+#
+# Secrets are yours: this script NEVER writes values into .env. A first run drops
+# a 0600 template, installs everything (apt, venv, pip), then stops at the config
+# check so you can fill the file in by hand; re-run it afterwards. .env is only
+# ever *read* — to check GROQ_API_KEY / the Google creds and to size Caddy's
+# upload limit.
 #
 # Re-run any time (git pull first) to update — it is idempotent.
 # DOMAIN may be a bare IP; then the site is served over plain HTTP (no TLS).
@@ -22,6 +28,15 @@ die() { echo "ERROR: $*" >&2; exit 1; }
 [[ -f "$APP_DIR/server/app.py" ]] || die "$APP_DIR is not the project root"
 [[ -n "${DOMAIN:-}" ]] || die "set DOMAIN=your.domain (or the server IP)"
 
+# --- .env: we create the template, you fill it in ---------------------------
+# Never written to below this point — secrets are yours. Created before the slow
+# steps so a first run installs everything it can, then stops at the checks.
+if [[ ! -f "$APP_DIR/.env" ]]; then
+  install -o "$RUN_USER" -m 600 "$APP_DIR/.env.example" "$APP_DIR/.env"
+  echo "==> created $APP_DIR/.env (0600) from .env.example — fill it in"
+fi
+chmod 600 "$APP_DIR/.env"
+
 # --- packages ---------------------------------------------------------------
 echo "==> apt"
 apt-get update -qq
@@ -36,17 +51,27 @@ echo "==> venv"
 sudo -u "$RUN_USER" "$APP_DIR/.venv/bin/pip" install -q --upgrade pip
 sudo -u "$RUN_USER" "$APP_DIR/.venv/bin/pip" install -q -r "$APP_DIR/requirements.txt"
 
-# --- .env -------------------------------------------------------------------
-if [[ ! -f "$APP_DIR/.env" ]]; then
-  echo "==> .env from .env.example"
-  install -o "$RUN_USER" -m 600 "$APP_DIR/.env.example" "$APP_DIR/.env"
+# --- .env checks: everything above is installed, now the config must be real -
+# Read one value the way python-dotenv does: first match wins, trailing
+# `# comment` and whitespace stripped — .env.example ships such comments, so a
+# plain `grep '=.\+'` would read an unset key as set.
+env_val() { sed -n "s/^$1=//p" "$APP_DIR/.env" | head -1 | sed 's/[[:space:]]*#.*$//; s/[[:space:]]*$//'; }
+
+[[ -n "$(env_val GROQ_API_KEY)" ]] \
+  || die "GROQ_API_KEY empty in $APP_DIR/.env — fill the file in, then re-run this script"
+
+SA_JSON=$(env_val GOOGLE_SA_JSON)
+# Not fatal, but silent otherwise: no customer log and no quota.
+[[ -n "$(env_val GOOGLE_SHEET_ID)" && -n "$SA_JSON" ]] \
+  || echo "WARNING: GOOGLE_SHEET_ID / GOOGLE_SA_JSON empty — no customer log, quota NOT enforced"
+
+# A service-account path that doesn't resolve fails per-job, deep in a worker
+# thread — catch it here instead. (*.json is gitignored, so you upload it yourself.)
+if [[ -n "$SA_JSON" && "$SA_JSON" != /path/* ]]; then
+  [[ -f "$SA_JSON" ]] || die "GOOGLE_SA_JSON points at $SA_JSON, which does not exist"
+  sudo -u "$RUN_USER" test -r "$SA_JSON" \
+    || die "$SA_JSON is not readable by $RUN_USER (the service runs as that user)"
 fi
-if [[ -n "${GROQ_API_KEY:-}" ]]; then
-  sed -i "s|^GROQ_API_KEY=.*|GROQ_API_KEY=${GROQ_API_KEY}|" "$APP_DIR/.env"
-fi
-chmod 600 "$APP_DIR/.env"
-grep -q '^GROQ_API_KEY=.\+' "$APP_DIR/.env" \
-  || die "GROQ_API_KEY empty in $APP_DIR/.env (config.py refuses to start without it)"
 
 # --- systemd ----------------------------------------------------------------
 echo "==> systemd unit $SERVICE"
@@ -74,7 +99,8 @@ echo "==> caddy site $DOMAIN"
 mkdir -p /etc/caddy/conf.d
 SITE="$DOMAIN"
 [[ "$DOMAIN" =~ ^[0-9.]+$ ]] && SITE="http://$DOMAIN"   # bare IP: no TLS possible
-MAX_MB=$(( $(grep -oP '^MAX_UPLOAD_MB=\K[0-9]+' "$APP_DIR/.env" || echo 50) + 10 ))
+UPLOAD_MB=$(env_val MAX_UPLOAD_MB)
+MAX_MB=$(( ${UPLOAD_MB:-50} + 10 ))   # +10MB for multipart overhead
 cat > "$CADDY_SITE" <<EOF
 ${SITE} {
 	request_body {
