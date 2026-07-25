@@ -7,8 +7,9 @@ the HTTP request so the customer sees the rejection on screen:
 
   1. duration — a real listening test runs ~45 min.
   2. the spoken opening — transcribe the first 90s and look for the stock
-     directions. prompt="" on purpose: CUE_PROMPT would prime the model with
-     TOEIC phrasing, which is exactly how you'd make any file look like TOEIC.
+     directions. prompt="" on purpose (passed explicitly, not just left to the
+     default): priming the model with TOEIC phrasing is exactly how you'd make
+     any file look like TOEIC.
 
 Cost: ffmpeg on 90s + one small Groq call, ~5s. A file that fails never pays
 for the full transcription.

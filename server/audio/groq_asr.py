@@ -35,15 +35,6 @@ MAX_UPLOAD_MB = int(os.environ.get("GROQ_MAX_UPLOAD_MB", "25"))
 # (connect, read) — a 45-min file is a long single request.
 TIMEOUT = (10, 900)
 
-# Biases the model toward the exact cues cut.py looks for. Whisper uses the
-# prompt as preceding context, so stock TOEIC phrasing here makes the spoken
-# question numbers noticeably more reliable — which is the only thing we
-# actually need from the transcript.
-# ponytail: tune this string if a variant test phrases its directions differently.
-CUE_PROMPT = ("Number 7. Number 21. Questions 32 through 34 refer to the "
-              "following conversation. Questions 71 through 73 refer to the "
-              "following talk.")
-
 
 def to_asr_mp3(src, dst, seconds=None):
     """Re-encode to 16kHz mono 32kbps mp3. Raises CalledProcessError on failure.
@@ -59,11 +50,25 @@ def to_asr_mp3(src, dst, seconds=None):
     return dst
 
 
-def post_audio(path, model, prompt=CUE_PROMPT):
+def post_audio(path, model, prompt=""):
     """POST the audio file, return parsed JSON. Raises RuntimeError on API error.
 
-    prompt="" disables the cue bias — verify.py needs an unprimed transcript,
-    since priming with TOEIC phrasing is how you'd make anything look TOEIC."""
+    NO PROMPT, ON PURPOSE — leave it empty. Whisper treats the prompt as
+    preceding context and regurgitates it verbatim over the long answer pauses
+    a TOEIC test is full of, destroying the real cue in that 30s window. Cues
+    recovered by cut.py, measured on both test files:
+
+        prompt                        Test_07              Test_01
+        stock TOEIC phrasing     22/23 grp, 6 lost    21/23 grp, 9 lost
+        numbers only             12/23 grp, 4 lost              -
+        "" (this)                23/23 grp, 0 lost    23/23 grp, 0 lost
+
+    Priming made the spoken numbers *less* reliable, not more: one prompt line
+    ("Questions 71 through 73 refer to the following talk.") came back as runs
+    of "Questions 72 through 34 refer to the following talk." every 30s, each
+    one eating a "Number N." Don't add a prompt back without re-running that
+    table. verify.py also passes "" so a non-TOEIC file can't be primed into
+    looking like one."""
     size_mb = os.path.getsize(path) / 1024 / 1024
     if size_mb > MAX_UPLOAD_MB:
         raise RuntimeError(

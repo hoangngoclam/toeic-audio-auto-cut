@@ -54,8 +54,22 @@ a local backend back without a reason; `server/config.py` fails at import when
 `groq_asr.py` re-encodes to 16kHz mono 32kbps mp3 before upload: measured 43.7MB → 10.0MB in
 6s on a 45-min file, which keeps it under Groq's 25MB free-tier cap (100MB on the dev tier,
 `GROQ_MAX_UPLOAD_MB`). Don't "improve" this to FLAC — lossless 16kHz mono is ~128kbps and
-inflated the same file to 81.6MB. `CUE_PROMPT` biases the model toward the stock TOEIC
-phrasings, which is what makes the spoken question numbers reliable.
+inflated the same file to 81.6MB.
+
+**Send no prompt.** `post_audio` defaults to `prompt=""` and must stay that way. Whisper
+treats the prompt as preceding context and regurgitates it verbatim over the long answer
+pauses a TOEIC test is full of, destroying the real cue in that 30s window. A prompt of
+stock TOEIC phrasing came back as runs of "Questions 72 through 34 refer to the following
+talk." every 30s, each one eating a `Number N.` Cues recovered by `cut.py`:
+
+| prompt | Test_07 | Test_01 |
+|---|---|---|
+| stock TOEIC phrasing | 22/23 groups, 6 singles lost | 21/23 groups, 9 singles lost |
+| numbers only | 12/23 groups, 4 singles lost | — |
+| `""` | **23/23, none lost** | **23/23, none lost** |
+
+Priming makes the spoken numbers *less* reliable, not more. Don't add one back without
+re-running that table.
 
 ### Service flow
 
@@ -103,8 +117,8 @@ the fix if it ever matters is a per-email lock, not a database.
 `cut.py`'s layout is hard-coded to a full Q1–100 listening test, so anything else yields
 garbage. `verify_toeic` runs two cheap gates inside the request: duration (35–60 min), then
 a Groq transcription of the **first 90s** which must hit ≥2 of `MARKERS` (the stock
-directions wording). It calls `post_audio(..., prompt="")` on purpose — `CUE_PROMPT` would
-prime the model with TOEIC phrasing, which is precisely how you'd make any file look like
+directions wording). It passes `prompt=""` explicitly rather than leaning on the default —
+priming the model with TOEIC phrasing is precisely how you'd make any file look like
 TOEIC. Consequence to know: a real test with its opening directions trimmed off is
 **rejected**, since the evidence we check for is gone.
 
