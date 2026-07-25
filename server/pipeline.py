@@ -13,6 +13,7 @@ and its path is logged instead of uploaded/emailed."""
 
 import os
 import shutil
+import sys
 import traceback
 
 from server import config, drive, mailer, sheets
@@ -27,6 +28,14 @@ def _log_status(row, status, link=""):
     """Sheet bookkeeping must never sink a job that already produced a link."""
     try:
         sheets.set_status(row, status, link)
+    except Exception:
+        traceback.print_exc()
+
+
+def _notify(send, *args):
+    """Send a notification; a failing mailbox is logged, never raised."""
+    try:
+        send(*args)
     except Exception:
         traceback.print_exc()
 
@@ -66,12 +75,13 @@ def process_job(job_id, email, original_name, sheet_row=None):
         print(f"[job {job_id}] DONE -> {link}")
 
     except Exception:
-        traceback.print_exc()
+        err = traceback.format_exc()
+        print(err, file=sys.stderr)
         _log_status(sheet_row, "error")
-        try:
-            mailer.send_error(email)
-        except Exception:
-            traceback.print_exc()
+        # Two independent sends: a broken mailbox on one side must not swallow
+        # the other, and neither must hide the original failure.
+        _notify(mailer.send_error, email)
+        _notify(mailer.send_admin_error, job_id, email, original_name, err)
     finally:
         shutil.rmtree(job_dir, ignore_errors=True)
         print(f"[job {job_id}] cleaned up {job_dir}")

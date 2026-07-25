@@ -32,6 +32,10 @@ MAX_JOBS_PER_EMAIL = int(os.environ.get("MAX_JOBS_PER_EMAIL", "5"))
 GMAIL_USER = os.environ.get("GMAIL_USER", "")
 GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
 
+# Where job failures are reported. Defaults to the operator rather than "" so a
+# box that was never configured still shouts instead of failing silently.
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "lammt1998@gmail.com")
+
 DRIVE_ENABLED = bool(GOOGLE_SA_JSON and GDRIVE_FOLDER_ID)
 EMAIL_ENABLED = bool(GMAIL_USER and GMAIL_APP_PASSWORD)
 SHEETS_ENABLED = bool(GOOGLE_SA_JSON and GOOGLE_SHEET_ID)

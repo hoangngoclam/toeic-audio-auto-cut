@@ -68,10 +68,16 @@ keeping the "max 2 concurrent jobs" guarantee. Jobs do **not** survive a restart
 that matters.
 
 `server/pipeline.py::process_job` runs transcribe → cut → zip → Drive upload → email →
-mark the Sheets row → cleanup. Every failure is caught, emails the customer a friendly
-Vietnamese message, marks the row `error`, and logs the traceback. `server/drive.py`,
-`server/sheets.py` and `server/mailer.py` are all no-op/raise-guarded on missing creds so
-local testing needs no `.env`.
+mark the Sheets row → cleanup. Every failure marks the row `error`, logs the traceback, and
+sends **two** mails through `_notify` (independent, so a bad mailbox on one side can't
+swallow the other): an apology to the customer, and the raw traceback to
+`config.ADMIN_EMAIL` — otherwise an `error` row is the only trace and nobody notices.
+`server/drive.py`, `server/sheets.py` and `server/mailer.py` are all no-op/raise-guarded on
+missing creds so local testing needs no `.env`.
+
+`ponytail:` a Sheets outage during `POST /submit` (the 503 path) only logs — no admin mail,
+because that fires once per attempt and would flood the mailbox. Failures there are visible
+to the customer immediately; job failures are not, which is why only jobs mail out.
 
 ### Quota + customer log (`server/sheets.py`)
 

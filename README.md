@@ -47,6 +47,22 @@ Sheet dùng tab `customers-info`, mỗi job 1 dòng:
 |---|---|---|---|
 | `khach@example.com` | `pending` → `done` / `error` | link Drive | `2026-07-25 14:03:21` |
 
+## Khi job lỗi (`status = error`)
+
+Hệ thống gửi **2 email** ngay lúc job thất bại:
+
+- **Khách hàng** — thư xin lỗi, nói rõ **lượt không bị tính** nên gửi lại được. Không có
+  traceback (khách không đọc được và cũng không giúp gì).
+- **Admin** (`ADMIN_EMAIL`, mặc định `lammt1998@gmail.com`) — job id, email khách, tên file,
+  thời gian, kèm **nguyên văn traceback**. Đây là cách bạn biết có lỗi mà không phải ngồi
+  nhìn Sheet.
+
+Hai lần gửi độc lập nhau: một hộp thư chết không làm mất thư kia, và cả hai đều không che
+lỗi gốc (vẫn ghi ra `journalctl -u toeic-cut`).
+
+Lưu ý: lỗi **503 lúc submit** (không đọc được Google Sheet) chỉ ghi log, không gửi mail —
+lỗi đó khách thấy ngay trên màn hình, và mail hoá sẽ spam mỗi lần có người bấm gửi.
+
 ## Giới hạn & kiểm tra đầu vào
 
 - **5 lượt / 1 email.** Chỉ đếm các job `done` trong Sheet — job lỗi không tính, khách gửi
