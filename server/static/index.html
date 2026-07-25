@@ -24,12 +24,25 @@
   .msg.ok { display:block; background:rgba(47,125,77,.18); border:1px solid var(--ok); }
   .msg.err { display:block; background:rgba(192,57,43,.18); border:1px solid var(--err); }
   .hint { font-size:12px; color:var(--mut); margin-top:8px; }
+  .note { font-size:13px; line-height:1.55; background:rgba(79,156,249,.12); border:1px solid var(--acc); border-radius:10px; padding:12px 14px; margin-bottom:18px; }
+  .note ul { margin:6px 0 0; padding-left:18px; }
+  .note li { margin-bottom:4px; }
+  .note b { color:#cfe3ff; }
 </style>
 </head>
 <body>
 <form class="card" id="form">
   <h1>Cắt file nghe TOEIC</h1>
   <div class="sub">Tải lên 1 file <b>.mp3</b> bài nghe TOEIC → hệ thống cắt thành các clip theo câu hỏi và gửi link tải về email của bạn.</div>
+
+  <div class="note">
+    <b>Vui lòng đọc trước khi gửi:</b>
+    <ul>
+      <li><b>Link tải các file audio đã cắt chỉ được gửi qua email</b> — hãy nhập chính xác địa chỉ email của bạn, nhập sai là bạn sẽ không nhận được kết quả.</li>
+      <li>Mỗi email chỉ được cắt tối đa <b>5 file</b>.</li>
+      <li>Chỉ nhận <b>đề nghe TOEIC đầy đủ</b> (khoảng 45 phút, 100 câu). File khác sẽ bị từ chối ngay.</li>
+    </ul>
+  </div>
 
   <label>File nghe (.mp3, tối đa 50MB)</label>
   <label class="drop" id="drop">
@@ -41,7 +54,7 @@
   <input type="email" id="email" name="email" placeholder="ban@example.com" required>
 
   <button type="submit" id="submit">Gửi xử lý</button>
-  <div class="hint">Xử lý mất vài phút (transcribe + cắt). Bạn có thể đóng trang, link sẽ được gửi về email.</div>
+  <div class="hint">Sau khi gửi, hệ thống kiểm tra file khoảng 5 giây rồi mới nhận. Xử lý mất vài phút — bạn có thể đóng trang, link sẽ được gửi về email.</div>
   <div class="msg" id="msg"></div>
 </form>
 
@@ -57,7 +70,7 @@ drop.addEventListener("drop", (ev) => { if (ev.dataTransfer.files[0]) { fileInpu
 $("form").onsubmit = async (e) => {
   e.preventDefault();
   msg.className = "msg";
-  $("submit").disabled = true; $("submit").textContent = "Đang gửi…";
+  $("submit").disabled = true; $("submit").textContent = "Đang kiểm tra file…";
   try {
     const res = await fetch("/submit", { method: "POST", body: new FormData(e.target) });
     const data = await res.json().catch(() => ({}));
