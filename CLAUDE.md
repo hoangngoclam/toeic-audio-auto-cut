@@ -75,6 +75,13 @@ swallow the other): an apology to the customer, and the raw traceback to
 `server/drive.py`, `server/sheets.py` and `server/mailer.py` are all no-op/raise-guarded on
 missing creds so local testing needs no `.env`.
 
+`server/drive.py` passes `supportsAllDrives=True` and expects `GDRIVE_FOLDER_ID` to live on a
+**Shared drive**. This is not optional: a service account has no storage quota of its own, so
+uploading into a My Drive folder fails with `403 storageQuotaExceeded` no matter how the
+folder is shared. `_explain()` turns Drive's 20-line JSON errors into one actionable line —
+it's the last line of the traceback, so it survives a `journalctl` page and lands at the
+bottom of the admin mail.
+
 `ponytail:` a Sheets outage during `POST /submit` (the 503 path) only logs — no admin mail,
 because that fires once per attempt and would flood the mailbox. Failures there are visible
 to the customer immediately; job failures are not, which is why only jobs mail out.

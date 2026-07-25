@@ -41,6 +41,12 @@ quá 5 lượt/email, và gửi email thật.
 **Nhớ share Google Sheet cho email của service account với quyền Editor**, nếu không mọi
 lượt gửi sẽ trả về 503.
 
+**`GDRIVE_FOLDER_ID` phải là folder trong một Shared drive**, và service account phải là
+member (Content manager) của Shared drive đó. Folder trong My Drive sẽ luôn lỗi
+`403 storageQuotaExceeded` — service account không có dung lượng Drive riêng, nên file
+phải thuộc về Shared drive để dùng quota của drive đó. Code gọi Drive API với
+`supportsAllDrives=True` chính là để chuyện này chạy được.
+
 Sheet dùng tab `customers-info`, mỗi job 1 dòng:
 
 | A Email | B Status | C Link resource | D Time |

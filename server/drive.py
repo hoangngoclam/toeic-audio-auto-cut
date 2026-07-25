@@ -22,13 +22,18 @@ def upload_and_share(file_path, name=None):
 
     meta = {"name": name or file_path.split("/")[-1], "parents": [config.GDRIVE_FOLDER_ID]}
     media = MediaFileUpload(file_path, mimetype="application/zip", resumable=True)
+    # supportsAllDrives is what makes GDRIVE_FOLDER_ID on a Shared drive work, and
+    # a Shared drive is mandatory here: a service account has no storage quota of
+    # its own, so uploading into a My Drive folder always 403s.
     try:
         created = service.files().create(
-            body=meta, media_body=media, fields="id").execute()
+            body=meta, media_body=media, fields="id",
+            supportsAllDrives=True).execute()
         file_id = created["id"]
 
         service.permissions().create(
-            fileId=file_id, body={"role": "reader", "type": "anyone"}).execute()
+            fileId=file_id, body={"role": "reader", "type": "anyone"},
+            supportsAllDrives=True).execute()
     except HttpError as e:
         raise RuntimeError(_explain(e)) from e
 
@@ -44,13 +49,17 @@ def _explain(e):
     status = getattr(e, "status_code", None) or getattr(getattr(e, "resp", None), "status", "?")
     reason = getattr(e, "reason", "") or body
     if "storageQuota" in body or "storage quota" in body:
-        hint = (" — a service account has NO Drive storage of its own. Point "
-                "GDRIVE_FOLDER_ID at a folder on a Shared drive with the SA added as "
-                "member, or leave Drive unconfigured to keep the zip in results/")
+        hint = (" — GDRIVE_FOLDER_ID is on a My Drive, where a service account has no "
+                "storage quota. It must be a folder inside a Shared drive that the SA "
+                "is a member of (Content manager)")
     elif str(status) == "404":
-        hint = " — GDRIVE_FOLDER_ID not found, or the folder isn't shared with the service account"
+        hint = (" — GDRIVE_FOLDER_ID not found: wrong id, or the SA is not a member of "
+                "that Shared drive (a Shared drive folder is invisible to it otherwise)")
+    elif "sharingRateLimit" in body or "cannotShare" in body:
+        hint = (" — the Workspace admin blocks 'anyone with the link' sharing; allow "
+                "external link sharing for that Shared drive")
     elif str(status) == "403":
-        hint = " — Drive API disabled for the project, or the SA lacks Editor on that folder"
+        hint = " — Drive API disabled for the project, or the SA lacks write access on that folder"
     else:
         hint = ""
     return f"Drive upload failed ({status}): {reason}{hint}"
