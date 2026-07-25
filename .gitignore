@@ -1,0 +1,11 @@
+.env
+*.json
+!vercel.json
+.venv/
+__pycache__/
+jobs/
+clips/
+results/
+transcript.json
+timestamps.json
+*.mp3

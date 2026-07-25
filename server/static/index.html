@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cắt file nghe TOEIC</title>
+<style>
+  :root { --bg:#0f1216; --card:#1a1f27; --line:#2a313c; --fg:#e7ecf3; --mut:#8b97a7; --acc:#4f9cf9; --ok:#2f7d4d; --err:#c0392b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:16px/1.5 system-ui,sans-serif; background:var(--bg); color:var(--fg); display:flex; min-height:100vh; align-items:center; justify-content:center; padding:16px; }
+  .card { width:100%; max-width:460px; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:28px; }
+  h1 { margin:0 0 4px; font-size:20px; }
+  .sub { color:var(--mut); font-size:14px; margin-bottom:20px; }
+  label { display:block; font-size:13px; color:var(--mut); margin:14px 0 6px; }
+  input[type=email], .drop { width:100%; }
+  input[type=email] { background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:12px; color:var(--fg); font-size:15px; }
+  .drop { border:2px dashed var(--line); border-radius:12px; padding:22px 14px; text-align:center; color:var(--mut); cursor:pointer; }
+  .drop:hover { border-color:var(--acc); color:var(--fg); }
+  .drop input { display:none; }
+  .drop b { color:var(--fg); }
+  button { margin-top:20px; width:100%; background:var(--acc); color:#04101f; border:0; border-radius:10px; padding:13px; font-size:15px; font-weight:600; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  .msg { margin-top:16px; font-size:14px; padding:12px; border-radius:10px; display:none; }
+  .msg.ok { display:block; background:rgba(47,125,77,.18); border:1px solid var(--ok); }
+  .msg.err { display:block; background:rgba(192,57,43,.18); border:1px solid var(--err); }
+  .hint { font-size:12px; color:var(--mut); margin-top:8px; }
+</style>
+</head>
+<body>
+<form class="card" id="form">
+  <h1>Cắt file nghe TOEIC</h1>
+  <div class="sub">Tải lên 1 file <b>.mp3</b> bài nghe TOEIC → hệ thống cắt thành các clip theo câu hỏi và gửi link tải về email của bạn.</div>
+
+  <label>File nghe (.mp3, tối đa 50MB)</label>
+  <label class="drop" id="drop">
+    <input type="file" id="file" name="file" accept=".mp3,audio/mpeg" required>
+    <div id="dropText"><b>Chọn file .mp3</b> hoặc kéo thả vào đây</div>
+  </label>
+
+  <label>Email nhận link</label>
+  <input type="email" id="email" name="email" placeholder="ban@example.com" required>
+
+  <button type="submit" id="submit">Gửi xử lý</button>
+  <div class="hint">Xử lý mất vài phút (transcribe + cắt). Bạn có thể đóng trang, link sẽ được gửi về email.</div>
+  <div class="msg" id="msg"></div>
+</form>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const fileInput = $("file"), drop = $("drop"), dropText = $("dropText"), msg = $("msg");
+
+fileInput.onchange = () => { if (fileInput.files[0]) dropText.innerHTML = "<b>" + fileInput.files[0].name + "</b>"; };
+["dragover","dragenter"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.style.borderColor = "#4f9cf9"; }));
+["dragleave","drop"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.style.borderColor = ""; }));
+drop.addEventListener("drop", (ev) => { if (ev.dataTransfer.files[0]) { fileInput.files = ev.dataTransfer.files; fileInput.onchange(); } });
+
+$("form").onsubmit = async (e) => {
+  e.preventDefault();
+  msg.className = "msg";
+  $("submit").disabled = true; $("submit").textContent = "Đang gửi…";
+  try {
+    const res = await fetch("/submit", { method: "POST", body: new FormData(e.target) });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      msg.className = "msg ok"; msg.textContent = data.message || "Đã nhận.";
+      e.target.reset(); dropText.innerHTML = "<b>Chọn file .mp3</b> hoặc kéo thả vào đây";
+    } else {
+      msg.className = "msg err"; msg.textContent = data.detail || "Có lỗi xảy ra.";
+    }
+  } catch {
+    msg.className = "msg err"; msg.textContent = "Không kết nối được tới server.";
+  } finally {
+    $("submit").disabled = false; $("submit").textContent = "Gửi xử lý";
+  }
+};
+</script>
+</body>
+</html>
