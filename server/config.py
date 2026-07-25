@@ -1,6 +1,7 @@
-"""Settings from environment (.env). Drive + email are OPTIONAL for local
-testing: when their creds are absent the pipeline still cuts clips and keeps
-the zip in results/ instead of uploading/emailing."""
+"""Settings from environment (.env). Groq is REQUIRED (it's the only ASR
+backend); Drive, Gmail and Sheets are optional for local testing — without
+their creds the pipeline still cuts clips, keeps the zip in results/, prints
+the "email", and does not enforce the per-email quota."""
 
 import os
 
@@ -10,11 +11,22 @@ load_dotenv()
 
 MAX_UPLOAD_MB = int(os.environ.get("MAX_UPLOAD_MB", "50"))
 MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
-WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "small")
+
+# Groq hosted Whisper is the only backend (faster-whisper needed ~1GB RSS per
+# worker, which doesn't fit the 2GB VPS). server/audio/ reads GROQ_* from env
+# itself — it must stay importable without the web layer; this check is here
+# only so a misconfigured box dies at startup instead of mid-job.
+if not os.environ.get("GROQ_API_KEY"):
+    raise RuntimeError("GROQ_API_KEY is not set (see .env.example)")
 
 # Optional: Google Drive upload (service account).
 GOOGLE_SA_JSON = os.environ.get("GOOGLE_SA_JSON", "")
 GDRIVE_FOLDER_ID = os.environ.get("GDRIVE_FOLDER_ID", "")
+
+# Optional: customer log + quota in a Google Sheet (same service account).
+GOOGLE_SHEET_ID = os.environ.get("GOOGLE_SHEET_ID", "")
+SHEET_TAB = os.environ.get("SHEET_TAB", "customers-info")
+MAX_JOBS_PER_EMAIL = int(os.environ.get("MAX_JOBS_PER_EMAIL", "5"))
 
 # Optional: Gmail SMTP.
 GMAIL_USER = os.environ.get("GMAIL_USER", "")
@@ -22,3 +34,4 @@ GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
 
 DRIVE_ENABLED = bool(GOOGLE_SA_JSON and GDRIVE_FOLDER_ID)
 EMAIL_ENABLED = bool(GMAIL_USER and GMAIL_APP_PASSWORD)
+SHEETS_ENABLED = bool(GOOGLE_SA_JSON and GOOGLE_SHEET_ID)

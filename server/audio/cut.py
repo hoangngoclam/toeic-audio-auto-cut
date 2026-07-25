@@ -7,8 +7,8 @@
 # Q32-100 in groups of 3). ffmpeg does the cutting; structure comes from
 # what the recording literally says.
 #
-# CLI:   .venv/bin/python cut.py <input.mp3> [outDir] [transcript.json]
-# Module: from cut import cut ; cut(input, out_dir, transcript_path)
+# CLI:   .venv/bin/python -m server.audio.cut <input.mp3> [outDir] [transcript.json]
+# Module: from server.audio.cut import cut ; cut(input, out_dir, transcript_path)
 
 import json
 import os
